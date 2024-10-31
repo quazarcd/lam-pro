@@ -11,6 +11,7 @@ December 2024 9.0
  - Fixed bugs:
   -> Windows: show more than 1000 LDAP entries when paged results is activated in server profile
   -> WebAuthn: support DNs larger than 64 bytes (358)
+  -> Wildcard replacements do not work without switching to the module tab (379)
 
 
 24.09.2024 8.9
