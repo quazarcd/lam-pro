@@ -187,6 +187,13 @@ class inetLocalMailRecipient extends baseModule {
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		return ['mailLocalAddress', 'mailRoutingAddress'];
+	}
+
+	/**
 	 * Returns the HTML meta data for the main account page.
 	 *
 	 * @return htmlElement HTML meta data
@@ -194,7 +201,7 @@ class inetLocalMailRecipient extends baseModule {
 	function display_html_attributes() {
 		$return = new htmlResponsiveRow();
 		if (in_array('inetLocalMailRecipient', $this->attributes['objectClass'])) {
-			$this->getAccountContainer()->replaceWildcardsInArray(['mailLocalAddress', 'mailRoutingAddress'], $this->attributes);
+			$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 			// mail routing address
 			$this->addSimpleInputTextField($return, 'mailRoutingAddress', _('Routing address'));
 			// mail server
@@ -237,7 +244,7 @@ class inetLocalMailRecipient extends baseModule {
 			return [];
 		}
 		$errors = [];
-		$this->getAccountContainer()->replaceWildcardsInPOST(['mailLocalAddress', 'mailRoutingAddress']);
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		$this->attributes['mailRoutingAddress'] = [];
 		$this->attributes['mailLocalAddress'] = [];
 		$this->attributes['mailHost'] = [];
