@@ -1228,6 +1228,7 @@ abstract class baseModule {
 	 * @return array list of modifications
 	 */
 	public function save_attributes() {
+		$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 		return $this->getAccountContainer()->save_module_attributes($this->attributes, $this->orig);
 	}
 
@@ -2362,6 +2363,15 @@ abstract class baseModule {
 	 * @return array replacements as wildcard => value
 	 */
 	public function getWildCardReplacements() {
+		return [];
+	}
+
+	/**
+	 * Returns a list of attribute names that may contain wildcards.
+	 *
+	 * @return array list of attribute names
+	 */
+	public function getWildcardTargetAttributeNames(): array {
 		return [];
 	}
 

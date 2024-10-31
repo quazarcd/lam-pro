@@ -669,7 +669,7 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		}
 		$modules = $this->getAccountContainer()->get_type()->getModules();
 		// get default changes
-		$return = $this->getAccountContainer()->save_module_attributes($this->attributes, $this->orig);
+		$return = parent::save_attributes();
 		// add information about clear text password and password status change
 		$return[$this->getAccountContainer()->dn_orig]['info']['userPasswordClearText'][0] = $this->clearTextPassword;
 		$pwdAttrName = $this->getPasswordAttrName($modules);
@@ -1091,8 +1091,7 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 	 * @return array list of info/error messages
 	 */
 	function process_attributes() {
-		$keysToReplace = ['cn', 'gecos', 'homeDirectory'];
-		$this->getAccountContainer()->replaceWildcardsInPOST($keysToReplace);
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		$modules = $this->getAccountContainer()->get_type()->getModules();
 		$typeId = $this->getAccountContainer()->get_type()->getId();
 		$errors = [];
@@ -1696,6 +1695,13 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		return ['cn', 'gecos', 'homeDirectory'];
+	}
+
+	/**
 	 * Returns the HTML meta data for the main account page.
 	 *
 	 * @return htmlElement HTML meta data
@@ -1706,8 +1712,7 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		$modules = $this->getAccountContainer()->get_type()->getModules();
 		$typeId = $this->getAccountContainer()->get_type()->getId();
 		if (!$this->isOptional($modules) || $this->skipObjectClass() || (isset($this->attributes['objectClass']) && in_array('posixAccount', $this->attributes['objectClass']))) {
-			$keysToReplace = ['cn', 'gecos', 'homeDirectory'];
-			$this->getAccountContainer()->replaceWildcardsInArray($keysToReplace, $this->attributes);
+			$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 			$homeDirAttr = $this->getHomedirAttrName($modules);
 			$groupList = $this->findGroups($modules); // list of all group names
 			$groups = [];

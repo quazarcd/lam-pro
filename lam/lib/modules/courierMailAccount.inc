@@ -248,12 +248,19 @@ class courierMailAccount extends baseModule {
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		return ['homeDirectory', 'mailbox'];
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	public function display_html_attributes() {
 		$return = new htmlResponsiveRow();
 		if ($this->isExtensionEnabled()) {
-			$this->getAccountContainer()->replaceWildcardsInArray(['homeDirectory', 'mailbox'], $this->attributes);
+			$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 			if ($this->isUnixDisabled($this->getAccountContainer()->get_type()->getModules())) {
 				// home directory
 				$this->addSimpleInputTextField($return, 'homeDirectory', _('Home directory'), true);
@@ -334,7 +341,7 @@ class courierMailAccount extends baseModule {
 		if (!$this->isExtensionEnabled()) {
 			return [];
 		}
-		$this->getAccountContainer()->replaceWildcardsInPOST(['homeDirectory', 'mailbox']);
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		$errors = [];
 		// check new mailbox
 		$this->attributes['mailbox'][0] = $_POST['mailbox'];

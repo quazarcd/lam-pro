@@ -892,7 +892,7 @@ class inetOrgPerson extends baseModule implements passwordService, AccountStatus
 		if (!$this->getAccountContainer()->isNewAccount && !in_array('inetOrgPerson', $this->getAccountContainer()->attributes_orig['objectClass'])) {
 			return [];
 		}
-		$return = $this->getAccountContainer()->save_module_attributes($this->attributes, $this->orig);
+		$return = parent::save_attributes();
 		// postalAddress, registeredAddress, facsimileTelephoneNumber and jpegPhoto need special removing
 		if (isset($return[$this->getAccountContainer()->dn_orig]['remove']['postalAddress'])) {
 			$return[$this->getAccountContainer()->dn_orig]['modify']['postalAddress'] = $this->attributes['postalAddress'];
@@ -999,12 +999,7 @@ class inetOrgPerson extends baseModule implements passwordService, AccountStatus
 	 */
 	function process_attributes() {
 		$errors = [];
-		$keysToReplace = ['mail', 'description', 'postalAddress', 'cn',
-			'registeredAddress', 'labeledURI'];
-		if ($this->isUnixActive()) {
-			$keysToReplace[] = 'uid';
-		}
-		$this->getAccountContainer()->replaceWildcardsInPOST($keysToReplace);
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		// add parent object classes
 		if ($this->getAccountContainer()->isNewAccount) {
 			if (!in_array('organizationalPerson', $this->attributes['objectClass'])) {
@@ -1218,12 +1213,7 @@ class inetOrgPerson extends baseModule implements passwordService, AccountStatus
 	 */
 	function display_html_attributes() {
 		$this->initCache();
-		$keysToReplace = ['mail', 'description', 'postalAddress', 'uid', 'cn',
-			'registeredAddress', 'labeledURI'];
-		if ($this->isUnixActive()) {
-			$keysToReplace[] = 'uid';
-		}
-		$this->getAccountContainer()->replaceWildcardsInArray($keysToReplace, $this->attributes);
+		$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 		$container = new htmlResponsiveRow();
 		$fieldContainer = new htmlResponsiveRow();
 		$fieldTabletColumns = $this->isBooleanConfigOptionSet('inetOrgPerson_hidejpegPhoto') ? 12 : 8;
@@ -3886,6 +3876,18 @@ class inetOrgPerson extends baseModule implements passwordService, AccountStatus
 		}
 		$modules = $this->getAccountContainer()->get_type()->getModules();
 		return in_array('sambaSamAccount', $modules);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		$attributeNames = ['mail', 'description', 'postalAddress', 'uid', 'cn',
+			'registeredAddress', 'labeledURI'];
+		if ($this->isUnixActive()) {
+			$attributeNames[] = 'uid';
+		}
+		return $attributeNames;
 	}
 
 	/**

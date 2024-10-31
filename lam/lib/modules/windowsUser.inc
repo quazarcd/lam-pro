@@ -1343,16 +1343,22 @@ class windowsUser extends baseModule implements passwordService, AccountStatusPr
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		return ['cn', 'displayName', 'mail', 'otherMailbox',
+			'profilePath', 'scriptPath', 'homeDirectory', 'userPrincipalName',
+			'sAMAccountName'];
+	}
+
+	/**
 	 * Returns the HTML metadata for the main account page.
 	 *
 	 * @return htmlElement HTML meta data
 	 */
 	public function display_html_attributes() {
 		$this->initCache();
-		$keysToReplace = ['cn', 'displayName', 'mail', 'otherMailbox',
-			'profilePath', 'scriptPath', 'homeDirectory', 'userPrincipalName',
-			'sAMAccountName'];
-		$this->getAccountContainer()->replaceWildcardsInArray($keysToReplace, $this->attributes);
+		$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 		$containerLeft = new htmlResponsiveRow();
 		if ($this->getAccountContainer()->isNewAccount && !isset($this->attributes['useraccountcontrol'][0])) {
 			$this->attributes['useraccountcontrol'][0] = self::DEFAULT_ACCOUNT_CONTROL;
@@ -1744,10 +1750,7 @@ class windowsUser extends baseModule implements passwordService, AccountStatusPr
 	 */
 	public function process_attributes() {
 		$return = [];
-		$keysToReplace = ['cn', 'displayName', 'mail', 'otherMailbox',
-			'profilePath', 'scriptPath', 'homeDirectory', 'userPrincipalName',
-			'sAMAccountName'];
-		$this->getAccountContainer()->replaceWildcardsInPOST($keysToReplace);
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		// user name
 		$userPrincipalName = $_POST['userPrincipalName'];
 		if (!get_preg($userPrincipalName, 'username')) {
