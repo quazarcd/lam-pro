@@ -1165,7 +1165,35 @@
         </mediaobject>
       </screenshot>
 
-      <para>Logon hours can be changed.</para>
+      <para><emphasis role="bold">Wildcards</emphasis></para>
+
+      <para>You can use wildcards in the following input fields on user edit
+      screen:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>Display name</para>
+        </listitem>
+
+        <listitem>
+          <para>Home path</para>
+        </listitem>
+
+        <listitem>
+          <para>Profile path</para>
+        </listitem>
+
+        <listitem>
+          <para>Logon script</para>
+        </listitem>
+      </itemizedlist>
+
+      <para>Use this when some of your data always follows the same schema.
+      E.g. using "\\server\$user" in home path field can be used like this to
+      get "\\server\myuser". You can set the wildcards in profile editor so
+      they are automatically applied for new users.</para>
+
+      <para><emphasis role="bold">Logon hours</emphasis></para>
 
       <screenshot>
         <mediaobject>

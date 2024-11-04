@@ -685,6 +685,13 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function getWildcardTargetAttributeNames(): array {
+		return ['displayName', 'sambaHomePath', 'sambaLogonScript', 'sambaProfilePath'];
+	}
+
+	/**
 	 * Processes user input of the primary module page.
 	 * It checks if all input values are correct and updates the associated LDAP attributes.
 	 *
@@ -714,13 +721,13 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 		if (!$this->isExtensionEnabled()) {
 			return [];
 		}
+		$this->getAccountContainer()->replaceWildcardsInPOST($this->getWildcardTargetAttributeNames());
 		$errors = [];
 		$sambaDomains = $this->getDomains();
 		if (sizeof($sambaDomains) == 0) {
 			return [];
 		}
-		$attrs = $this->getAccountContainer()->getAccountModule('posixAccount')->getAttributes();
-		$unixGroupName = $this->getGroupName($attrs['gidNumber'][0]);
+		$unixAttributes = $this->getAccountContainer()->getAccountModule('posixAccount')->getAttributes();
 		// Save attributes
 		$this->attributes['sambaDomainName'][0] = $_POST['sambaDomainName'];
 		// Get Domain SID from name
@@ -769,10 +776,6 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 
 		// display name
 		$this->attributes['displayName'][0] = $_POST['displayName'];
-		if (!empty($this->attributes['displayName'][0])) {
-			$this->attributes['displayName'][0] = str_replace('$user', $attrs['uid'][0], $this->attributes['displayName'][0]);
-			$this->attributes['displayName'][0] = str_replace('$group', $unixGroupName, $this->attributes['displayName'][0]);
-		}
 		if (!($this->attributes['displayName'][0] == '') && !(get_preg($this->attributes['displayName'][0], 'realname'))) {
 			$errors[] = $this->messages['displayName'][1];
 		}
@@ -781,7 +784,7 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 		if ($this->get_scope() == 'host') {
 			$this->attributes['sambaPrimaryGroupSID'][0] = $SID . "-" . $this->groupRids[_('Domain computers')];
 			if (isset($_POST['ResetSambaPassword']) || !isset($this->attributes['sambaNTPassword'][0])) {
-				$hostname = $attrs['uid'][0];
+				$hostname = $unixAttributes['uid'][0];
 				$hostname = substr($hostname, 0, strlen($hostname) - 1);
 				$this->attributes['sambaNTPassword'][0] = ntPassword($hostname);
 				$this->attributes['sambaPwdLastSet'][0] = time();
@@ -791,8 +794,6 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 		if ($this->get_scope() == 'user') {
 			if (!$this->isBooleanConfigOptionSet('sambaSamAccount_hideHomePath')) {
 				$this->attributes['sambaHomePath'][0] = $_POST['sambaHomePath'];
-				$this->attributes['sambaHomePath'][0] = str_replace('$user', $attrs['uid'][0], $this->attributes['sambaHomePath'][0]);
-				$this->attributes['sambaHomePath'][0] = str_replace('$group', $unixGroupName, $this->attributes['sambaHomePath'][0]);
 				if ($this->attributes['sambaHomePath'][0] != $_POST['sambaHomePath']) {
 					$errors[] = $this->messages['homePath'][1];
 				}
@@ -810,8 +811,6 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 			}
 			if (!$this->isBooleanConfigOptionSet('sambaSamAccount_hideLogonScript')) {
 				$this->attributes['sambaLogonScript'][0] = $_POST['sambaLogonScript'];
-				$this->attributes['sambaLogonScript'][0] = str_replace('$user', $attrs['uid'][0], $this->attributes['sambaLogonScript'][0]);
-				$this->attributes['sambaLogonScript'][0] = str_replace('$group', $unixGroupName, $this->attributes['sambaLogonScript'][0]);
 				if ($this->attributes['sambaLogonScript'][0] != $_POST['sambaLogonScript']) {
 					$errors[] = $this->messages['logonScript'][1];
 				}
@@ -821,8 +820,6 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 			}
 			if (!$this->isBooleanConfigOptionSet('sambaSamAccount_hideProfilePath')) {
 				$this->attributes['sambaProfilePath'][0] = $_POST['sambaProfilePath'];
-				$this->attributes['sambaProfilePath'][0] = str_replace('$user', $attrs['uid'][0], $this->attributes['sambaProfilePath'][0]);
-				$this->attributes['sambaProfilePath'][0] = str_replace('$group', $unixGroupName, $this->attributes['sambaProfilePath'][0]);
 				if ($this->attributes['sambaProfilePath'][0] != $_POST['sambaProfilePath']) {
 					$errors[] = $this->messages['profilePath'][1];
 				}
@@ -841,7 +838,7 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 				}
 			}
 			if (!$wrid) {
-				$gidnumber = $attrs['gidNumber'][0];
+				$gidnumber = $unixAttributes['gidNumber'][0];
 				$groups = $this->getGroupSIDList();
 				if (isset($groups[$gidnumber]) && ($groups[$gidnumber] != '')) {
 					$this->attributes['sambaPrimaryGroupSID'][0] = $groups[$gidnumber];
@@ -863,13 +860,13 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 				if (!isset($this->attributes['sambaSID'][0])
 					|| in_array($rid, $this->userRids)
 					|| (!str_contains($this->attributes['sambaSID'][0], $SID))) {
-					$this->attributes['sambaSID'][0] = $SID . "-" . (($attrs['uidNumber'][0] * 2) + $RIDbase);
+					$this->attributes['sambaSID'][0] = $SID . "-" . (($unixAttributes['uidNumber'][0] * 2) + $RIDbase);
 				}
 			}
 		}
 		else {  // host
 			if (!isset($this->attributes['sambaSID'][0])) {
-				$this->attributes['sambaSID'][0] = $SID . "-" . (($attrs['uidNumber'][0] * 2) + $RIDbase);
+				$this->attributes['sambaSID'][0] = $SID . "-" . (($unixAttributes['uidNumber'][0] * 2) + $RIDbase);
 			}
 		}
 		if (isset($_POST['forcePasswordChangeOption'])) {
@@ -1084,9 +1081,10 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 	function display_html_attributes() {
 		$return = new htmlResponsiveRow();
 		if ($this->isExtensionEnabled()) {
+			$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
+			$unixAttributes = $this->getAccountContainer()->getAccountModule('posixAccount')->getAttributes();
 			if ($this->get_scope() == "host") {
-				$attrs = $this->getAccountContainer()->getAccountModule('posixAccount')->getAttributes();
-				if (!str_ends_with($attrs['uid'][0], '$')) {
+				if (!str_ends_with($unixAttributes['uid'][0], '$')) {
 					$return->add(new htmlStatusMessage("ERROR", _('Host name must end with $!'), _('Please check your settings on the Unix page!')));
 				}
 			}
@@ -1255,10 +1253,9 @@ class sambaSamAccount extends baseModule implements passwordService, AccountStat
 					}
 					$options[] = $names[$i];
 				}
-				$attrs = $this->getAccountContainer()->getAccountModule('posixAccount')->getAttributes();
-				$options[] = $this->getGroupName($attrs['gidNumber'][0]);
+				$options[] = $this->getGroupName($unixAttributes['gidNumber'][0]);
 				if (!$wrid) {
-					$selected[] = $this->getGroupName($attrs['gidNumber'][0]);
+					$selected[] = $this->getGroupName($unixAttributes['gidNumber'][0]);
 				}
 				$return->add(new htmlResponsiveSelect('sambaPrimaryGroupSID', $options, $selected, _('Windows group'), 'group'));
 				// display if group SID should be mapped to a well known SID
