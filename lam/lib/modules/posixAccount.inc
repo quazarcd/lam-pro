@@ -673,29 +673,35 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 			return [];
 		}
 		if (isset($this->attributes['gidNumber'][0]) && ($this->attributes['gidNumber'][0] === self::CREATE_GROUP_WITH_SAME_NAME)) {
-			$groupType = $this->getPosixGroupType();
-			$sessionKey = 'TMP' . generateRandomText();
-			$accountContainerTmp = new accountContainer($groupType, $sessionKey);
-			$_SESSION[$sessionKey] = &$accountContainerTmp;
-			$accountContainerTmp->new_account();
-			$posixGroupModule = $accountContainerTmp->getAccountModule('posixGroup');
-			$nextGid = $posixGroupModule->getNextGIDs(1, $errors, $groupType);
-			if ($nextGid !== null) {
-				$newGroupName = $this->attributes['uid'][0];
-				$dnNewGroup = 'cn=' . $newGroupName . ',' . $groupType->getSuffix();
-				$attributesNewGroup = [
-					'cn' => [$newGroupName],
-					'gidNumber' => $nextGid[0],
-					'objectClass' => ['posixGroup'],
-				];
-				$newGroupSuccess = @ldap_add(getLDAPServerHandle(), $dnNewGroup, $attributesNewGroup);
-				if ($newGroupSuccess) {
-					logNewMessage(LOG_NOTICE, 'Created new group: ' . $newGroupName);
-					$this->attributes['gidNumber'][0] = $nextGid[0];
-					$this->groupCache = null;
-				}
-				else {
-					logNewMessage(LOG_ERR, 'Unable to create new group: ' . getDefaultLDAPErrorString(getLDAPServerHandle()));
+			$newGroupName = $this->attributes['uid'][0];
+			$existingGid = $this->getGID($newGroupName);
+			if ($existingGid !== null) {
+				$this->attributes['gidNumber'][0] = $existingGid;
+			}
+			else {
+				$groupType = $this->getPosixGroupType();
+				$sessionKey = 'TMP' . generateRandomText();
+				$accountContainerTmp = new accountContainer($groupType, $sessionKey);
+				$_SESSION[$sessionKey] = &$accountContainerTmp;
+				$accountContainerTmp->new_account();
+				$posixGroupModule = $accountContainerTmp->getAccountModule('posixGroup');
+				$nextGid = $posixGroupModule->getNextGIDs(1, $errors, $groupType);
+				if ($nextGid !== null) {
+					$dnNewGroup = 'cn=' . $newGroupName . ',' . $groupType->getSuffix();
+					$attributesNewGroup = [
+						'cn' => [$newGroupName],
+						'gidNumber' => $nextGid[0],
+						'objectClass' => ['posixGroup'],
+					];
+					$newGroupSuccess = @ldap_add(getLDAPServerHandle(), $dnNewGroup, $attributesNewGroup);
+					if ($newGroupSuccess) {
+						logNewMessage(LOG_NOTICE, 'Created new group: ' . $newGroupName);
+						$this->attributes['gidNumber'][0] = $nextGid[0];
+						$this->groupCache = null;
+					}
+					else {
+						logNewMessage(LOG_ERR, 'Unable to create new group: ' . getDefaultLDAPErrorString(getLDAPServerHandle()));
+					}
 				}
 			}
 		}
