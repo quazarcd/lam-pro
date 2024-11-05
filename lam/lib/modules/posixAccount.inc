@@ -686,6 +686,7 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 				$accountContainerTmp->new_account();
 				$posixGroupModule = $accountContainerTmp->getAccountModule('posixGroup');
 				$nextGid = $posixGroupModule->getNextGIDs(1, $errors, $groupType);
+				unset($_SESSION[$sessionKey]);
 				if ($nextGid !== null) {
 					$dnNewGroup = 'cn=' . $newGroupName . ',' . $groupType->getSuffix();
 					$attributesNewGroup = [
