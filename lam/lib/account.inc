@@ -78,6 +78,22 @@ function in_array_ignore_case($needle, $haystack) {
 }
 
 /**
+ * Sorts an array in natural order by its keys.
+ *
+ * @param array $toSort array to sort
+ * @return array sorted array
+ */
+function natCaseKeySort(array $toSort): array {
+	$keys = array_keys($toSort);
+	natcasesort($keys);
+	$newElements = [];
+	foreach ($keys as $key) {
+		$newElements[$key] = $toSort[$key];
+	}
+	return $newElements;
+}
+
+/**
  * This function will return the days from 1.1.1970 until now.
  *
  * @return number of days
