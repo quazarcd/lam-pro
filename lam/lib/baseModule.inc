@@ -1240,7 +1240,7 @@ abstract class baseModule {
 	 * The modification is aborted if an error message is returned.
 	 *
 	 * @param boolean $newAccount new account
-	 * @param array $attributes LDAP attributes of this entry (added/modified attributes are provided as reference, handle modifications of $attributes with care)
+	 * @param array $attributes LDAP attributes of this entry
 	 * @return array array which contains status messages. Each entry is an array containing the status message parameters.
 	 */
 	public function preModifyActions($newAccount, &$attributes) {

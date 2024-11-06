@@ -64,6 +64,11 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 	 */
 	private const STATUS_REMOVE_GON_GROUPS = "POSIX_ACCOUNT_REMOVE_GON_GROUPS";
 
+	/**
+	 * Marker for GID number to create a group with the same name
+	 */
+	private const CREATE_GROUP_WITH_SAME_NAME = '*create_group_with_same_name*';
+
 	/* These two variables keep an array of groups the user is also member of. */
 	/** current group list */
 	private $groups;
@@ -666,6 +671,40 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		if (!$this->skipObjectClass() && (!in_array('posixAccount', $this->attributes['objectClass']) && !in_array('posixAccount', $this->orig['objectClass']))) {
 			// skip saving if the extension was not added/modified
 			return [];
+		}
+		if (isset($this->attributes['gidNumber'][0]) && ($this->attributes['gidNumber'][0] === self::CREATE_GROUP_WITH_SAME_NAME)) {
+			$newGroupName = $this->attributes['uid'][0];
+			$existingGid = $this->getGID($newGroupName);
+			if ($existingGid !== null) {
+				$this->attributes['gidNumber'][0] = $existingGid;
+			}
+			else {
+				$groupType = $this->getPosixGroupType();
+				$sessionKey = 'TMP' . generateRandomText();
+				$accountContainerTmp = new accountContainer($groupType, $sessionKey);
+				$_SESSION[$sessionKey] = &$accountContainerTmp;
+				$accountContainerTmp->new_account();
+				$posixGroupModule = $accountContainerTmp->getAccountModule('posixGroup');
+				$nextGid = $posixGroupModule->getNextGIDs(1, $errors, $groupType);
+				unset($_SESSION[$sessionKey]);
+				if ($nextGid !== null) {
+					$dnNewGroup = 'cn=' . $newGroupName . ',' . $groupType->getSuffix();
+					$attributesNewGroup = [
+						'cn' => [$newGroupName],
+						'gidNumber' => $nextGid[0],
+						'objectClass' => ['posixGroup'],
+					];
+					$newGroupSuccess = @ldap_add(getLDAPServerHandle(), $dnNewGroup, $attributesNewGroup);
+					if ($newGroupSuccess) {
+						logNewMessage(LOG_NOTICE, 'Created new group: ' . $newGroupName);
+						$this->attributes['gidNumber'][0] = $nextGid[0];
+						$this->groupCache = null;
+					}
+					else {
+						logNewMessage(LOG_ERR, 'Unable to create new group: ' . getDefaultLDAPErrorString(getLDAPServerHandle()));
+					}
+				}
+			}
 		}
 		$modules = $this->getAccountContainer()->get_type()->getModules();
 		// get default changes
@@ -1331,36 +1370,6 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 				$this->attributes[$this->getPasswordAttrName($modules)][0] = pwd_hash('x', true, $this->moduleSettings['posixAccount_pwdHash'][0]);
 			}
 		}
-		if (isset($_POST['posixAccount_createGroup'])
-			&& !$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hideCreateGroup')
-			&& ($this->get_scope() == 'user')
-			&& $this->getAccountContainer()->isNewAccount && get_preg($this->attributes['uid'][0], 'username')) {
-			$groupType = $this->getPosixGroupType();
-			$sessionKey = 'TMP' . generateRandomText();
-			$accountContainerTmp = new accountContainer($groupType, $sessionKey);
-			$_SESSION[$sessionKey] = &$accountContainerTmp;
-			$accountContainerTmp->new_account();
-			$posixGroupModule = $accountContainerTmp->getAccountModule('posixGroup');
-			$nextGid = $posixGroupModule->getNextGIDs(1, $errors, $groupType);
-			if ($nextGid !== null) {
-				$newGroupName = $this->attributes['uid'][0];
-				$dnNewGroup = 'cn=' . $newGroupName . ',' . $groupType->getSuffix();
-				$attributesNewGroup = [
-					'cn' => [$newGroupName],
-					'gidNumber' => $nextGid[0],
-					'objectClass' => ['posixGroup'],
-				];
-				$newGroupSuccess = @ldap_add(getLDAPServerHandle(), $dnNewGroup, $attributesNewGroup);
-				if ($newGroupSuccess) {
-					$errors[] = ['INFO', _('Created new group.'), htmlspecialchars($newGroupName)];
-					$this->attributes['gidNumber'][0] = $nextGid[0];
-					$this->groupCache = null;
-				}
-				else {
-					$errors[] = ['ERROR', _('Unable to create new group.'), getDefaultLDAPErrorString(getLDAPServerHandle())];
-				}
-			}
-		}
 		// Return error-messages
 		return $errors;
 	}
@@ -1714,12 +1723,19 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		if (!$this->isOptional($modules) || $this->skipObjectClass() || (isset($this->attributes['objectClass']) && in_array('posixAccount', $this->attributes['objectClass']))) {
 			$this->getAccountContainer()->replaceWildcardsInArray($this->getWildcardTargetAttributeNames(), $this->attributes);
 			$homeDirAttr = $this->getHomedirAttrName($modules);
+			$allowToCreateGroupWithUserName = ($this->get_scope() === 'user')
+				&& $this->getAccountContainer()->isNewAccount
+				&& !$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hideCreateGroup');
 			$groupList = $this->findGroups($modules); // list of all group names
 			$groups = [];
 			for ($i = 0; $i < sizeof($groupList); $i++) {
 				$groups[$groupList[$i][1]] = $groupList[$i][0];
 			}
-			if (count($groups) == 0) {
+			$groups = natCaseKeySort($groups);
+			if ($allowToCreateGroupWithUserName) {
+				$groups = [_('Create group with same name') => self::CREATE_GROUP_WITH_SAME_NAME] + $groups;
+			}
+			if (empty($groups)) {
 				$return->add(new htmlStatusMessage("ERROR", _('No Unix groups found in LDAP! Please create one first.')));
 				return $return;
 			}
@@ -1811,22 +1827,14 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 			}
 			$primaryGroup = [];
 			if (isset($this->attributes['gidNumber'][0])) {
-				$primaryGroup[] = $this->attributes['gidNumber'][0];
+				$primaryGroup = [$this->attributes['gidNumber'][0]];
 			}
 			$gidNumberSelect = new htmlResponsiveSelect('gidNumber', $groups, $primaryGroup, _('Primary group'), 'gidNumber');
 			$gidNumberSelect->setHasDescriptiveElements(true);
+			$gidNumberSelect->setSortElements(false);
 			$return->add($gidNumberSelect);
 
 			if ($this->get_scope() == 'user') {
-				// new Unix group with same name
-				$posixGroupType = $this->getPosixGroupType();
-				if ($this->getAccountContainer()->isNewAccount
-					&& !$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hideCreateGroup')
-					&& ($posixGroupType !== null)
-					&& (!isset($this->attributes['uid'][0]) || !isset($groups[$this->attributes['uid'][0]]))) {
-					$return->addLabel(new htmlOutputText('&nbsp;', false));
-					$return->addField(new htmlButton('posixAccount_createGroup', _('Create group with same name')));
-				}
 				// additional groups
 				if (!$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hidegon') || !$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hideposixGroups')) {
 					$return->addLabel(new htmlOutputText(_('Additional groups')));
@@ -2135,16 +2143,26 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		$groupList = $this->findGroups($modules);
 		$groups = [];
 		for ($i = 0; $i < sizeof($groupList); $i++) {
-			$groups[] = $groupList[$i][1];
+			$groups[$groupList[$i][1]] = $groupList[$i][1];
 		}
+		$groups = natCaseKeySort($groups);
 		if ($this->get_scope() == 'user') {
-			$shelllist = $this->getShells(); // list of all valid shells
 			// primary Unix group
-			$return->add(new htmlResponsiveSelect('posixAccount_primaryGroup', $groups, [], _('Primary group'), 'gidNumber'));
+			$primaryGroups = $groups;
+			$allowToCreateGroupWithUserName = !$this->isBooleanConfigOptionSet('posixAccount_' . $typeId . '_hideCreateGroup');
+			if ($allowToCreateGroupWithUserName) {
+				$primaryGroups = [_('Create group with same name') => self::CREATE_GROUP_WITH_SAME_NAME] + $primaryGroups;
+			}
+			$primaryGroupSelect = new htmlResponsiveSelect('posixAccount_primaryGroup', $primaryGroups, [], _('Primary group'), 'gidNumber');
+			$primaryGroupSelect->setHasDescriptiveElements(true);
+			$primaryGroupSelect->setSortElements(false);
+			$return->add($primaryGroupSelect);
 			// additional group memberships
 			$addGroupSelect = new htmlResponsiveSelect('posixAccount_additionalGroup', $groups, [], _('Additional groups'), 'addgroup', 10);
 			$addGroupSelect->setMultiSelect(true);
 			$addGroupSelect->setTransformSingleSelect(false);
+			$addGroupSelect->setHasDescriptiveElements(true);
+			$addGroupSelect->setSortElements(false);
 			$return->add($addGroupSelect);
 			// group of names
 			if (self::areGroupOfNamesActive()) {
@@ -2168,6 +2186,7 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 			// home directory
 			$return->add(new htmlResponsiveInputField(_('Home directory'), 'posixAccount_homeDirectory', '/home/$user', 'homeDirectory'));
 			// login shell
+			$shelllist = $this->getShells(); // list of all valid shells
 			$return->add(new htmlResponsiveSelect('posixAccount_loginShell', $shelllist, ["/bin/bash"], _('Login shell'), 'loginShell'));
 			// lamdaemon settings
 			if ($_SESSION['config']->get_scriptPath() != null) {
@@ -2182,7 +2201,10 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		}
 		elseif ($this->get_scope() == 'host') {
 			// primary Unix group
-			$return->add(new htmlResponsiveSelect('posixAccount_primaryGroup', $groups, [], _('Primary group'), 'gidNumber'));
+			$primaryGroupSelect = new htmlResponsiveSelect('posixAccount_primaryGroup', $groups, [], _('Primary group'), 'gidNumber');
+			$primaryGroupSelect->setHasDescriptiveElements(true);
+			$primaryGroupSelect->setSortElements(false);
+			$return->add($primaryGroupSelect);
 		}
 		if ($this->isOptional($modules)) {
 			$return->add(new htmlResponsiveInputCheckbox('posixAccount_addExt', false, _('Automatically add this extension'), 'autoAdd'));
@@ -2215,9 +2237,14 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 		// special profile options
 		// GID
 		if (isset($profile['posixAccount_primaryGroup'][0])) {
-			$gid = $this->getGID($profile['posixAccount_primaryGroup'][0]);
-			if ($gid != null) {
-				$this->attributes['gidNumber'][0] = $gid;
+			if ($profile['posixAccount_primaryGroup'][0] === self::CREATE_GROUP_WITH_SAME_NAME) {
+				$this->attributes['gidNumber'][0] = self::CREATE_GROUP_WITH_SAME_NAME;
+			}
+			else {
+				$gid = $this->getGID($profile['posixAccount_primaryGroup'][0]);
+				if ($gid != null) {
+					$this->attributes['gidNumber'][0] = $gid;
+				}
 			}
 		}
 		// other group memberships
@@ -4138,11 +4165,18 @@ class posixAccount extends baseModule implements passwordService, AccountStatusP
 			$replacements['user'] = $this->attributes['uid'][0];
 		}
 		// group name
-		if (!empty($_POST['gidNumber'])) {
-			$replacements['group'] = $this->getGroupName($_POST['gidNumber']);
+		if (isset($this->attributes['gidNumber'][0]) && ($this->attributes['gidNumber'][0] === self::CREATE_GROUP_WITH_SAME_NAME)) {
+			if (isset($replacements['user'])) {
+				$replacements['group'] = $replacements['user'];
+			}
 		}
-		elseif (!empty($this->attributes['gidNumber'][0])) {
-			$replacements['group'] = $this->getGroupName($this->attributes['gidNumber'][0]);
+		else {
+			if (!empty($_POST['gidNumber'])) {
+				$replacements['group'] = $this->getGroupName($_POST['gidNumber']);
+			}
+			elseif (!empty($this->attributes['gidNumber'][0])) {
+				$replacements['group'] = $this->getGroupName($this->attributes['gidNumber'][0]);
+			}
 		}
 		return $replacements;
 	}
