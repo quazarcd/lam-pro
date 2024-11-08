@@ -204,9 +204,9 @@ function getSectionHeadline($entry) {
  */
 function printLabelValue(&$pdf, $valueEntry, $fontName) {
 	$pdf->SetFont($fontName, 'B', LAMPDF_FONT_SIZE);
-	$pdf->MultiCell(LAMPDF_LABELWIDTH, LAMPDF_LINEHEIGHT, $valueEntry->getLabel() . ':', 0, 'R', false, 0, '', '', true, 0, false, true, 0, 'T');
+	$pdf->MultiCell(LAMPDF_LABELWIDTH, LAMPDF_LINEHEIGHT, replaceSpecialCharacters($valueEntry->getLabel()) . ':', 0, 'R', false, 0, '', '', true, 0, false, true, 0, 'T');
 	$pdf->SetFont($fontName, '', LAMPDF_FONT_SIZE);
-	$pdf->MultiCell(0, LAMPDF_LINEHEIGHT, $valueEntry->getValue(), 0, 'L', false, 1, '', '', true, 0, false, true, 0, 'M');
+	$pdf->MultiCell(0, LAMPDF_LINEHEIGHT, replaceSpecialCharacters($valueEntry->getValue()), 0, 'L', false, 1, '', '', true, 0, false, true, 0, 'M');
 	$pdf->Ln(0);
 }
 
@@ -221,7 +221,7 @@ function printTable(&$pdf, $table, $fontName) {
 	$headline = $table->getHeadline();
 	if (!empty($headline)) {
 		$pdf->SetFont($fontName, 'B', LAMPDF_FONT_SIZE);
-		$pdf->Cell(LAMPDF_LABELWIDTH, LAMPDF_LINEHEIGHT, $headline . ':', 0, 0, 'L', 0);
+		$pdf->Cell(LAMPDF_LABELWIDTH, LAMPDF_LINEHEIGHT, replaceSpecialCharacters($headline) . ':', 0, 0, 'L', 0);
 		$pdf->SetFont($fontName, '', LAMPDF_FONT_SIZE);
 		$pdf->Ln(LAMPDF_LINEHEIGHT);
 	}
@@ -234,7 +234,7 @@ function printTable(&$pdf, $table, $fontName) {
 			if ($cell->bold) {
 				$pdf->SetFont($fontName, 'B', LAMPDF_FONT_SIZE);
 			}
-			$pdf->Cell($width, LAMPDF_LINEHEIGHT, $cell->content, 0, 0, $cell->align, 0, '', 1);
+			$pdf->Cell($width, LAMPDF_LINEHEIGHT, replaceSpecialCharacters($cell->content), 0, 0, $cell->align, 0, '', 1);
 			if ($cell->bold) {
 				$pdf->SetFont($fontName, '', LAMPDF_FONT_SIZE);
 			}
@@ -264,6 +264,20 @@ function printImage(&$pdf, $imageEntry, $fontName) {
 	$pdf->Ln($height);
 	$pdf->Ln(LAMPDF_LINEHEIGHT);
 	$imageManipulator = null;
+}
+
+/**
+ * Replaces special characters that cannot be printed in PDF.
+ * Can be removed once tc-lib-pdf is used.
+ *
+ * @param string|null $text input text
+ * @return string output text
+ */
+function replaceSpecialCharacters(?string $text): string {
+	if (empty($text)) {
+		return $text;
+	}
+	return str_replace('❭', '>', $text);
 }
 
 /**
