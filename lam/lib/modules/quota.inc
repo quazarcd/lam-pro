@@ -109,10 +109,6 @@ class quota extends baseModule {
 		$numbersHelp = _('Symbols K, M, G and T can be appended to numeric value to express kibibytes, mebibytes, gibibytes and tebibytes for blocks.')
 			. _(' Symbols k, m, g and t can be appended to numeric value to express multiples of 10^3, 10^6, 10^9 and 10^12 inodes.');
 		$return['help'] = [
-			"Mountpoint" => [
-				"Headline" => _("Mountpoint"),
-				"Text" => _("Mountpoint of device with enabled quotas.")
-			],
 			"UsedBlocks" => [
 				"Headline" => _("Used blocks"),
 				"Text" => _("Used blocks. 1000 blocks are usually 1MB")
@@ -233,13 +229,13 @@ class quota extends baseModule {
 				$singleQuota[7] = $this->addInodeUnits($singleQuota[7]);
 				$this->quota[$server][$i] = $singleQuota;
 				if ($this->quota[$server][$i][4] < time()) {
-					$this->quota[$server][$i][4] = '';
+					$this->quota[$server][$i][4] = '-';
 				}
 				else {
 					$this->quota[$server][$i][4] = intval(($this->quota[$server][$i][4] - time()) / 3600) . ' ' . _('hours');
 				}
 				if ($this->quota[$server][$i][8] < time()) {
-					$this->quota[$server][$i][8] = '';
+					$this->quota[$server][$i][8] = '-';
 				}
 				else {
 					$this->quota[$server][$i][8] = intval(($this->quota[$server][$i][8] - time()) / 3600) . ' ' . _('hours');
@@ -338,7 +334,7 @@ class quota extends baseModule {
 		$billion = 1000 * $million;
 		$trillion = 1000 * $billion;
 		if (empty($value) || !get_preg($value, 'digit')) {
-			return $value;
+			return '-';
 		}
 		if ($value >= $trillion) {
 			return round($value / $trillion, 2) . 't';
@@ -584,7 +580,6 @@ class quota extends baseModule {
 	 */
 	function display_html_attributes() {
 		$return = new htmlResponsiveRow();
-		$return->setCSSClasses(['maxrow']);
 		try {
 			$this->initQuotas();
 		}
@@ -613,45 +608,43 @@ class quota extends baseModule {
 			}
 			$return->add(new htmlSubTitle($title));
 
-			$titles = [
-				_('Mountpoint'), _('Used blocks'), _('Soft block limit'), _('Hard block limit'), _('Grace block period'),
-				_('Used inodes'), _('Soft inode limit'), _('Hard inode limit'), _('Grace inode period')
-			];
-			$data = [
-				[
-					new htmlHelpLink('Mountpoint'), new htmlHelpLink('UsedBlocks'), new htmlHelpLink('SoftBlockLimit'),
-					new htmlHelpLink('HardBlockLimit'), new htmlHelpLink('GraceBlockPeriod'), new htmlHelpLink('UsedInodes'),
-					new htmlHelpLink('SoftInodeLimit'), new htmlHelpLink('HardInodeLimit'), new htmlHelpLink('GraceInodePeriod')
-				]
-			];
-
 			$i = 0;
 			// loop for every mointpoint with enabled quotas
 			while (isset($this->quota[$server][$i][0])) {
-				$dataRow = [];
-				$dataRow[] = new htmlOutputText($this->quota[$server][$i][0]);
-				$dataRow[] = new htmlOutputText($this->quota[$server][$i][1]);
-				$sbLimitInput = new htmlInputField($i . '_2_' . $id, $this->quota[$server][$i][2]);
-				$sbLimitInput->setFieldMaxLength(20);
-				$dataRow[] = $sbLimitInput;
-				$hbLimit = new htmlInputField($i . '_3_' . $id, $this->quota[$server][$i][3]);
-				$hbLimit->setFieldMaxLength(20);
-				$dataRow[] = $hbLimit;
-				$dataRow[] = new htmlOutputText($this->quota[$server][$i][4]);
-				$dataRow[] = new htmlOutputText($this->quota[$server][$i][5]);
-				$siLimit = new htmlInputField($i . '_6_' . $id, $this->quota[$server][$i][6]);
-				$siLimit->setFieldMaxLength(20);
-				$dataRow[] = $siLimit;
-				$hiLimit = new htmlInputField($i . '_7_' . $id, $this->quota[$server][$i][7]);
-				$hiLimit->setFieldMaxLength(20);
-				$dataRow[] = $hiLimit;
-				$dataRow[] = new htmlOutputText($this->quota[$server][$i][8]);
-				$data[] = $dataRow;
+				$return->addLabel(new htmlOutputText(_('Mountpoint')));
+				$return->addField(new htmlOutputText($this->quota[$server][$i][0]));
+				$return->addVerticalSpacer('0.5rem');
+				$usedBlockGroup = new htmlGroup();
+				$usedBlockGroup->addElement(new htmlOutputText($this->quota[$server][$i][1]));
+				$usedBlockGroup->addElement(new htmlSpacer('0.5rem'));
+				$usedBlockGroup->addElement(new htmlHelpLink('UsedBlocks'));
+				$return->addLabel(new htmlOutputText(_('Used blocks')));
+				$return->addField($usedBlockGroup);
+				$return->add(new htmlResponsiveInputField(_('Soft block limit'), $i . '_2_' . $id, $this->quota[$server][$i][2], 'SoftBlockLimit'));
+				$return->add(new htmlResponsiveInputField(_('Hard block limit'), $i . '_3_' . $id, $this->quota[$server][$i][3], 'HardBlockLimit'));
+				$graceBlockPeriodGroup = new htmlGroup();
+				$graceBlockPeriodGroup->addElement(new htmlOutputText($this->quota[$server][$i][4]));
+				$graceBlockPeriodGroup->addElement(new htmlSpacer('0.5rem'));
+				$graceBlockPeriodGroup->addElement(new htmlHelpLink('GraceBlockPeriod'));
+				$return->addLabel(new htmlOutputText(_('Grace block period')));
+				$return->addField($graceBlockPeriodGroup);
+				$usedInodesGroup = new htmlGroup();
+				$usedInodesGroup->addElement(new htmlOutputText($this->quota[$server][$i][5]));
+				$usedInodesGroup->addElement(new htmlSpacer('0.5rem'));
+				$usedInodesGroup->addElement(new htmlHelpLink('UsedInodes'));
+				$return->addLabel(new htmlOutputText(_('Used inodes')));
+				$return->addField($usedInodesGroup);
+				$return->add(new htmlResponsiveInputField(_('Soft inode limit'), $i . '_6_' . $id, $this->quota[$server][$i][6], 'SoftInodeLimit'));
+				$return->add(new htmlResponsiveInputField(_('Hard inode limit'), $i . '_7_' . $id, $this->quota[$server][$i][7], 'HardInodeLimit'));
+				$graceInodePeriodGroup = new htmlGroup();
+				$graceInodePeriodGroup->addElement(new htmlOutputText($this->quota[$server][$i][8]));
+				$graceInodePeriodGroup->addElement(new htmlSpacer('0.5rem'));
+				$graceInodePeriodGroup->addElement(new htmlHelpLink('GraceInodePeriod'));
+				$return->addLabel(new htmlOutputText(_('Grace inode period')));
+				$return->addField($graceInodePeriodGroup);
+				$return->addVerticalSpacer('3rem');
 				$i++;
 			}
-			$table = new htmlResponsiveTable($titles, $data);
-			$table->setWidths(['20%', '5%', '10%', '10%', '5%', '5%', '10%', '10%', '5%']);
-			$return->add($table);
 		}
 		return $return;
 	}
