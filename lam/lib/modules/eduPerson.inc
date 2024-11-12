@@ -411,7 +411,9 @@ class eduPerson extends baseModule {
 		if (isset($_POST['addeduPersonScopedAffiliation'])) {
 			$this->attributes['eduPersonScopedAffiliation'][] = '';
 		}
-		$this->attributes['eduPersonScopedAffiliation'] = array_values(array_unique($this->attributes['eduPersonScopedAffiliation']));
+		if (!empty($this->attributes['eduPersonScopedAffiliation'])) {
+			$this->attributes['eduPersonScopedAffiliation'] = array_values(array_unique($this->attributes['eduPersonScopedAffiliation']));
+		}
 		// principal name
 		$this->attributes['eduPersonPrincipalName'][0] = $_POST['eduPersonPrincipalName'];
 		if (($_POST['eduPersonPrincipalName'] != '') && !preg_match('/^[0-9a-z_\\.@-]+$/i', $_POST['eduPersonPrincipalName'])) {

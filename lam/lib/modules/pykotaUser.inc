@@ -560,7 +560,6 @@ class pykotaUser extends baseModule {
 	 */
 	function display_html_payments() {
 		$container = new htmlResponsiveRow();
-		$container->setCSSClasses(['maxrow']);
 		// total paid
 		$total = '';
 		if (!empty($this->attributes['pykotaLifeTimePaid'][0])) {
@@ -617,7 +616,6 @@ class pykotaUser extends baseModule {
 	 */
 	function display_html_jobs() {
 		$container = new htmlResponsiveRow();
-		$container->setCSSClasses(['maxrow']);
 		// jobs
 		$jobs = $this->getJobs($this->getCurrentUserName(), $this->moduleSettings['pykotaUser_jobSuffix'][0]);
 		$titles = [
@@ -634,7 +632,7 @@ class pykotaUser extends baseModule {
 			];
 		}
 		$table = new htmlResponsiveTable($titles, $data);
-		$table->setWidths(['20%', '20%', '15%', '15%', '30%']);
+		$table->setWidths(['20%', '20%', '10%', '10%', '40%']);
 		$container->add($table);
 		// back button
 		$container->addVerticalSpacer('2rem');
