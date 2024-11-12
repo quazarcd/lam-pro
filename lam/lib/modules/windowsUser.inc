@@ -2192,7 +2192,6 @@ class windowsUser extends baseModule implements passwordService, AccountStatusPr
 	 */
 	public function display_html_group() {
 		$return = new htmlResponsiveRow();
-		$return->setCSSClasses(['maxrow']);
 		$return->add(new htmlSubTitle(_("Groups")));
 		$groups = $this->findGroups();
 		$groupDisplayContainsDn = $this->groupDisplayContainsDn();
