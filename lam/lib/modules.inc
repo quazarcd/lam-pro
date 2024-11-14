@@ -1594,7 +1594,7 @@ class accountContainer {
 			echo '<span class="hide-on-mobile">';
 			echo $alias;
 			echo '<span>';
-			echo "&nbsp;</button>\n";
+			echo "</button>\n";
 			echo "</li>\n";
 		}
 		echo '</ul>';

@@ -70,6 +70,18 @@ $buttonDisabled = new htmlButton('name3', 'Click me');
 $buttonDisabled->setIsEnabled(false);
 $row->addField($buttonDisabled);
 
+$row->add(new htmlSubTitle('Lists'));
+$orderedList = new htmlList([
+    new htmlOutputText("text 1"),
+    new htmlOutputText("text 2"),
+    new htmlOutputText("text 3")], 'orderedList', true);
+$row->add($orderedList);
+$unorderedList = new htmlList([
+	new htmlOutputText("text 1"),
+	new htmlOutputText("text 2"),
+	new htmlOutputText("text 3")], 'unorderedList', false);
+$row->add($unorderedList);
+
 $row->add(new htmlSubTitle('Tables'));
 $tableTitles = ['text 1', 'text 2', 'text 3', 'text 4', 'text 5'];
 $tableData = [];

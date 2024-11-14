@@ -4802,20 +4802,20 @@ class htmlForm extends htmlElement {
  */
 class htmlList extends htmlElement {
 
-	private $elements = [];
+	private array $elements = [];
 
-	private $isOrdered = false;
+	private bool $isOrdered = false;
 
-	private $id = '';
+	private ?string $id = '';
 
 	/**
 	 * Constructor.
 	 *
-	 * @param array $elements elements to render
+	 * @param htmlElement[] $elements elements to render
 	 * @param string|null $id HTML unique id
 	 * @param bool|null $isOrdered is an ordered list
 	 */
-	function __construct(array $elements, ?string $id = null, ?bool $isOrdered = false) {
+	public function __construct(array $elements, ?string $id = null, ?bool $isOrdered = false) {
 		$this->elements = $elements;
 		$this->id = $id;
 		$this->isOrdered = $isOrdered;
