@@ -11,3 +11,4 @@
 /lam/.phpdoc
 /.idea
 *~
+.DS_Store
